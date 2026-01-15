@@ -6,6 +6,11 @@ import (
 )
 
 // Parser provides generic struct tag parsing with configurable syntax.
+//
+// Example:
+//
+//	p := tags.NewParser("my-tag", tags.WithPairDelimiter(";"))
+//	data := p.Parse("key:val; option:a,b")
 type Parser struct {
 	tagName       string
 	pairDelimiter string

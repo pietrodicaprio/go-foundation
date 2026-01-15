@@ -8,6 +8,11 @@ import (
 )
 
 // Discovery finds lifecycle methods on structs via reflection.
+//
+// Example:
+//
+//	d := hooks.NewDiscovery()
+//	methods := d.Discover(myService, "OnStart")
 type Discovery struct {
 	cache sync.Map
 }
@@ -26,6 +31,10 @@ type MethodInfo struct {
 }
 
 // Discover finds all methods on v with the given prefix.
+//
+// Returns:
+//
+// A list of discovered matching methods.
 func (d *Discovery) Discover(v any, prefix string) []MethodInfo {
 	val := reflect.ValueOf(v)
 	typ := val.Type()

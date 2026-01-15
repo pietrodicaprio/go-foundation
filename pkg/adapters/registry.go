@@ -5,6 +5,12 @@ import (
 )
 
 // Registry provides a generic, thread-safe registry for pluggable adapters.
+//
+// Example:
+//
+//	r := adapters.NewRegistry[Store]()
+//	r.Register("memory", NewMemoryStore())
+//	r.SetDefault("memory")
 type Registry[T any] struct {
 	adapters    map[string]T
 	defaultName string
@@ -26,6 +32,10 @@ func (r *Registry[T]) Register(name string, adapter T) {
 }
 
 // Get retrieves an adapter by name.
+//
+// Returns:
+//
+// The adapter and true if found, otherwise zero value and false.
 func (r *Registry[T]) Get(name string) (T, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -50,6 +60,9 @@ func (r *Registry[T]) SetDefault(name string) {
 }
 
 // Default returns the default adapter.
+//
+// Notes:
+//
 // Panics if no default is set or default is not registered.
 func (r *Registry[T]) Default() T {
 	r.mu.RLock()

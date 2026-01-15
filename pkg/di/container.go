@@ -6,6 +6,12 @@ import (
 )
 
 // Container manages dependency injection with thread-safe access.
+//
+// Example:
+//
+//	c := di.New()
+//	c.Provide("db", &Database{})
+//	db := di.Get[*Database](c, "db")
 type Container struct {
 	providers map[string]any
 	mu        sync.RWMutex
@@ -26,6 +32,10 @@ func (c *Container) Provide(name string, instance any) {
 }
 
 // Get retrieves a dependency by name.
+//
+// Returns:
+//
+// The value and true if found, otherwise nil and false.
 func (c *Container) Get(name string) (any, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -34,6 +44,10 @@ func (c *Container) Get(name string) (any, bool) {
 }
 
 // MustGet retrieves a dependency and panics if not found.
+//
+// Notes:
+//
+// Panics if the dependency is missing.
 func (c *Container) MustGet(name string) any {
 	v, ok := c.Get(name)
 	if !ok {
