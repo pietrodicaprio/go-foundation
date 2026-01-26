@@ -19,6 +19,8 @@ type Container struct {
 	mu        sync.RWMutex
 }
 
+var injectParser = tags.NewParser("inject", tags.WithPairDelimiter(";"), tags.WithKVSeparator(":"))
+
 // New creates an empty DI container.
 func New() *Container {
 	return &Container{
@@ -76,7 +78,8 @@ func (c *Container) Inject(target any) {
 	}
 
 	elem := val.Elem()
-	parser := tags.NewParser("inject", tags.WithPairDelimiter(";"), tags.WithKVSeparator(":"))
+	// Optimization: global parser for inject tags
+	parser := injectParser
 	fields := parser.ParseStruct(target)
 
 	c.mu.RLock()
