@@ -3,6 +3,8 @@ package di
 import (
 	"reflect"
 	"sync"
+
+	"github.com/mirkobrombin/go-foundation/pkg/tags"
 )
 
 // Container manages dependency injection with thread-safe access.
@@ -74,27 +76,26 @@ func (c *Container) Inject(target any) {
 	}
 
 	elem := val.Elem()
-	elemType := elem.Type()
+	parser := tags.NewParser("inject", tags.WithPairDelimiter(";"), tags.WithKVSeparator(":"))
+	fields := parser.ParseStruct(target)
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	for i := 0; i < elem.NumField(); i++ {
-		fieldType := elemType.Field(i)
-		fieldVal := elem.Field(i)
-
+	for _, meta := range fields {
+		fieldVal := elem.Field(meta.Index)
 		if !fieldVal.CanSet() {
 			continue
 		}
 
-		name := fieldType.Tag.Get("inject")
+		name := meta.RawTag
 		if name == "" {
-			name = fieldType.Name
+			name = meta.Name
 		}
 
 		if dep, ok := c.providers[name]; ok {
 			depVal := reflect.ValueOf(dep)
-			if depVal.Type().AssignableTo(fieldType.Type) {
+			if depVal.Type().AssignableTo(fieldVal.Type()) {
 				fieldVal.Set(depVal)
 			}
 		}

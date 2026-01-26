@@ -3,6 +3,7 @@ package tags
 import (
 	"reflect"
 	"strings"
+	"sync"
 )
 
 // Parser provides generic struct tag parsing with configurable syntax.
@@ -16,6 +17,8 @@ type Parser struct {
 	pairDelimiter string
 	kvSeparator   string
 	valueDelim    string
+	cache         map[reflect.Type][]FieldMeta
+	mu            sync.RWMutex
 }
 
 // Option configures a Parser.
@@ -43,6 +46,7 @@ func NewParser(tagName string, opts ...Option) *Parser {
 		pairDelimiter: ";",
 		kvSeparator:   ":",
 		valueDelim:    ",",
+		cache:         make(map[reflect.Type][]FieldMeta),
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -98,28 +102,7 @@ func (p *Parser) ParseStruct(v any) []FieldMeta {
 	if val.Kind() != reflect.Struct {
 		return nil
 	}
-
-	typ := val.Type()
-	var fields []FieldMeta
-
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		tag := field.Tag.Get(p.tagName)
-		if tag == "" {
-			continue
-		}
-
-		fields = append(fields, FieldMeta{
-			Name:       field.Name,
-			Index:      i,
-			Type:       field.Type,
-			Tags:       p.Parse(tag),
-			RawTag:     tag,
-			IsExported: field.IsExported(),
-		})
-	}
-
-	return fields
+	return p.ParseType(val.Type())
 }
 
 // ParseType extracts tag metadata from a reflect.Type.
@@ -131,6 +114,21 @@ func (p *Parser) ParseType(typ reflect.Type) []FieldMeta {
 		return nil
 	}
 
+	p.mu.RLock()
+	if cached, ok := p.cache[typ]; ok {
+		p.mu.RUnlock()
+		return cached
+	}
+	p.mu.RUnlock()
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Double check logic
+	if cached, ok := p.cache[typ]; ok {
+		return cached
+	}
+
 	var fields []FieldMeta
 
 	for i := 0; i < typ.NumField(); i++ {
@@ -150,6 +148,7 @@ func (p *Parser) ParseType(typ reflect.Type) []FieldMeta {
 		})
 	}
 
+	p.cache[typ] = fields
 	return fields
 }
 
