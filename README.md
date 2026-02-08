@@ -170,6 +170,38 @@ var count int
 reflect.Bind(reflect.ValueOf(&count).Elem(), "42")
 ```
 
+### `pkg/cpio` - CPIO (newc) Reader/Writer
+
+Portable CPIO newc pack/unpack primitives, useful for initramfs/tooling.
+
+```go
+import "github.com/mirkobrombin/go-foundation/pkg/cpio"
+
+var buf bytes.Buffer
+_ = cpio.PackDir("./rootfs", &buf, cpio.WithMTimeUnix(0))
+```
+
+### `pkg/ring` - Ring Buffers
+
+Low-level non-thread-safe ring buffers (generic + byte-specialized).
+
+```go
+import "github.com/mirkobrombin/go-foundation/pkg/ring"
+
+b := ring.New[int](128)
+_ = b.Push(1)
+```
+
+### `pkg/align` - Alignment Helpers
+
+Align up/down to power-of-two boundaries.
+
+```go
+import "github.com/mirkobrombin/go-foundation/pkg/align"
+
+_ = align.Up[uint64](123, 64) // 128
+```
+
 ## Why go-foundation?
 
 This library consolidates patterns that were duplicated across multiple of my projects, I just
