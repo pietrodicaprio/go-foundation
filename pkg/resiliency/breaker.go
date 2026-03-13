@@ -7,10 +7,13 @@ import (
 	"time"
 )
 
+// ErrCircuitOpen is returned by Execute when the circuit is in the Open state.
 var ErrCircuitOpen = errors.New("circuit breaker: circuit is open")
 
+// State represents the current state of a CircuitBreaker.
 type State int
 
+// Circuit breaker states.
 const (
 	StateClosed State = iota
 	StateOpen
@@ -54,11 +57,9 @@ func (cb *CircuitBreaker) OnStateChange(fn func(from, to State)) {
 	cb.onStateChange = fn
 }
 
-// Execute wraps a function call with circuit breaker logic.
-//
-// Returns:
-//
-// ErrCircuitOpen if the circuit is open, otherwise the error from fn.
+// Execute calls fn if the circuit allows it, recording the outcome to drive
+// state transitions. It returns ErrCircuitOpen when the circuit is in the Open
+// state, otherwise it returns the error (if any) produced by fn.
 func (cb *CircuitBreaker) Execute(fn func() error) error {
 	if !cb.allow() {
 		return ErrCircuitOpen
@@ -74,6 +75,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 	return nil
 }
 
+// allow returns true if the current state permits a call through.
 func (cb *CircuitBreaker) allow() bool {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -95,6 +97,7 @@ func (cb *CircuitBreaker) allow() bool {
 	return false
 }
 
+// onSuccess records a successful call and transitions out of HalfOpen if needed.
 func (cb *CircuitBreaker) onSuccess() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -106,6 +109,7 @@ func (cb *CircuitBreaker) onSuccess() {
 	cb.failures = 0
 }
 
+// onFailure records a failed call and trips the circuit when the threshold is reached.
 func (cb *CircuitBreaker) onFailure() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -122,6 +126,7 @@ func (cb *CircuitBreaker) onFailure() {
 	}
 }
 
+// changeState transitions to the target state and fires the optional callback.
 func (cb *CircuitBreaker) changeState(to State) {
 	from := cb.state
 	cb.state = to
