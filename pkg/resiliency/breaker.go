@@ -3,6 +3,7 @@ package resiliency
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -34,6 +35,7 @@ type CircuitBreaker struct {
 	timeout       time.Duration
 	lastFailure   time.Time
 	onStateChange func(from, to State)
+	probing       int32 // 1 when a probe is in flight (HalfOpen only)
 }
 
 // NewCircuitBreaker creates a new circuit breaker.
@@ -81,14 +83,14 @@ func (cb *CircuitBreaker) allow() bool {
 		return true
 	case StateOpen:
 		if time.Since(cb.lastFailure) > cb.timeout {
+			atomic.StoreInt32(&cb.probing, 0)
 			cb.changeState(StateHalfOpen)
-			return true
+			return atomic.CompareAndSwapInt32(&cb.probing, 0, 1)
 		}
 		return false
 	case StateHalfOpen:
-		// In half-open, we only allow one request to probe the system.
-		// For simplicity in this foundation version, we'll allow it.
-		return true
+		// Only allow one concurrent probe at a time.
+		return atomic.CompareAndSwapInt32(&cb.probing, 0, 1)
 	}
 	return false
 }
@@ -98,6 +100,7 @@ func (cb *CircuitBreaker) onSuccess() {
 	defer cb.mu.Unlock()
 
 	if cb.state == StateHalfOpen {
+		atomic.StoreInt32(&cb.probing, 0)
 		cb.changeState(StateClosed)
 	}
 	cb.failures = 0
@@ -113,6 +116,8 @@ func (cb *CircuitBreaker) onFailure() {
 	if cb.state == StateClosed && cb.failures >= cb.threshold {
 		cb.changeState(StateOpen)
 	} else if cb.state == StateHalfOpen {
+		atomic.StoreInt32(&cb.probing, 0)
+		cb.failures = 0
 		cb.changeState(StateOpen)
 	}
 }
